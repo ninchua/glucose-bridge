@@ -14,6 +14,7 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneOffset
+import androidx.health.connect.client.units.BloodGlucose
 
 class MainActivity : ComponentActivity() {
 
@@ -62,14 +63,14 @@ class MainActivity : ComponentActivity() {
 
                     // Costruttore coerente con i tuoi errori (time e level obbligatori)
                     val record = BloodGlucoseRecord(
-                        time = now,
-                        zoneOffset = ZoneOffset.UTC,
-                        level = BloodGlucoseRecord.BloodGlucose(mmolPerL = mmol),
-                        specimenSource = 0,   // UNKNOWN
-                        mealType = 0,         // UNKNOWN
-                        relationToMeal = 0,   // UNKNOWN
-                        metadata = Metadata()
-                    )
+    time = now,
+    zoneOffset = ZoneOffset.UTC,
+    level = BloodGlucose.millimolesPerLiter(mmol),
+    specimenSource = 0,   // UNKNOWN
+    mealType = 0,         // UNKNOWN
+    relationToMeal = 0,   // UNKNOWN
+    metadata = Metadata()
+)
 
                     hc.insertRecords(listOf(record))
                     txtStatus.text = "Inserito: $mmol mmol/L"
