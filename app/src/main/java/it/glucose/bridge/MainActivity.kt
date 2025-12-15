@@ -2,7 +2,10 @@ package it.glucose.bridge
 
 import android.content.Intent
 import android.os.Bundle
-import android.widget.*
+import android.widget.Button
+import android.widget.EditText
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.activity.result.contract.ActivityResultContracts
 import android.health.connect.HealthConnectException
@@ -29,7 +32,7 @@ class MainActivity : ComponentActivity() {
             status.text = if (granted) {
                 "Permesso concesso. Ora puoi inserire la glicemia."
             } else {
-                "Permesso NON concesso. Apri Health Connect e abilita Scrittura → Glicemia."
+                "Permesso NON concesso. Premi 'Apri permessi Health Connect' e abilita Scrittura → Glicemia."
             }
         }
 
@@ -83,4 +86,51 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        btnInsert.setO
+        btnInsert.setOnClickListener {
+            insertGlucose()
+        }
+    }
+
+    private fun insertGlucose() {
+        val mmol = edtMmol.text.toString()
+            .trim()
+            .replace(",", ".")
+            .toDoubleOrNull()
+
+        if (mmol == null) {
+            status.text = "Valore non valido"
+            return
+        }
+
+        val now = Instant.now()
+        val offset = ZoneOffset.systemDefault().rules.getOffset(now)
+
+        val record = BloodGlucoseRecord.Builder(
+            Metadata(),
+            now,
+            BloodGlucose.fromMillimolesPerLiter(mmol)
+        )
+            .setZoneOffset(offset)
+            .build()
+
+        status.text = "Inserimento in corso…"
+
+        hcm.insertRecords(
+            listOf(record),
+            executor,
+            object : OutcomeReceiver<InsertRecordsResponse, HealthConnectException> {
+                override fun onResult(result: InsertRecordsResponse) {
+                    runOnUiThread {
+                        status.text = "Inserito: $mmol mmol/L"
+                    }
+                }
+
+                override fun onError(error: HealthConnectException) {
+                    runOnUiThread {
+                        status.text = "Errore: ${error.message}"
+                    }
+                }
+            }
+        )
+    }
+}
