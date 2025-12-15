@@ -12,11 +12,12 @@ import android.health.connect.HealthConnectException
 import android.health.connect.HealthConnectManager
 import android.health.connect.InsertRecordsResponse
 import android.health.connect.datatypes.BloodGlucoseRecord
+import android.health.connect.datatypes.Metadata
+import android.health.connect.datatypes.units.BloodGlucose
 import android.os.OutcomeReceiver
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.Executors
-import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
 
@@ -101,25 +102,21 @@ class MainActivity : ComponentActivity() {
             return
         }
 
-        // Converti mmol/L -> mg/dL (Int) per il costruttore framework che richiede int
-        val mgdl = (mmol * 18.0182).roundToInt()
-
         val now = Instant.now()
         val offset = ZoneOffset.systemDefault().rules.getOffset(now)
 
-        // Firma tipica framework: (metadata, time, levelMgDl, specimenSource, relationToMeal, mealType)
+        val meta = Metadata.Builder().build()
+
+        // Builder framework che nel tuo SDK vuole BloodGlucose come level
         val record = BloodGlucoseRecord.Builder(
-            android.health.connect.datatypes.Metadata(),
+            meta,
             now,
-            mgdl,
-            /* specimenSource */ 0,
-            /* relationToMeal */ 0,
-            /* mealType */ 0
+            BloodGlucose.fromMillimolesPerLiter(mmol)
         )
             .setZoneOffset(offset)
             .build()
 
-        status.text = "Inserimento in corso… ($mmol mmol/L = $mgdl mg/dL)"
+        status.text = "Inserimento in corso… ($mmol mmol/L)"
 
         hcm.insertRecords(
             listOf(record),
@@ -127,7 +124,7 @@ class MainActivity : ComponentActivity() {
             object : OutcomeReceiver<InsertRecordsResponse, HealthConnectException> {
                 override fun onResult(result: InsertRecordsResponse) {
                     runOnUiThread {
-                        status.text = "Inserito: $mmol mmol/L ($mgdl mg/dL)"
+                        status.text = "Inserito: $mmol mmol/L"
                     }
                 }
 
