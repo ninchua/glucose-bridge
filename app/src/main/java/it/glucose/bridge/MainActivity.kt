@@ -7,14 +7,15 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.ComponentActivity
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.BloodGlucoseRecord
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.units.BloodGlucose
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.time.ZoneOffset
-import androidx.health.connect.client.units.BloodGlucose
 
 class MainActivity : ComponentActivity() {
 
@@ -24,32 +25,54 @@ class MainActivity : ComponentActivity() {
         HealthPermission.getWritePermission(BloodGlucoseRecord::class)
     )
 
+    private val requestPermissionsLauncher =
+        registerForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
+            val ok = granted.containsAll(permissions)
+            status?.text = if (ok) "Permessi OK (ora dovresti vedermi in Health Connect)" else "Permessi NON concessi"
+        }
+
+    private var status: TextView? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // UI minima senza XML (niente R.*)
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(40, 40, 40, 40)
         }
-        val txtStatus = TextView(this).apply { text = "Apri Health Connect e abilita permessi." }
+
+        val txtStatus = TextView(this).apply { text = "1) Premi 'Richiedi permessi'." }
+        status = txtStatus
+
+        val btnPerms = Button(this).apply { text = "Richiedi permessi Health Connect" }
         val edt = EditText(this).apply { hint = "mmol/L (es. 6.1)" }
-        val btn = Button(this).apply { text = "Inserisci su Health Connect" }
+        val btnInsert = Button(this).apply { text = "Inserisci glicemia" }
 
         root.addView(txtStatus)
+        root.addView(btnPerms)
         root.addView(edt)
-        root.addView(btn)
+        root.addView(btnInsert)
         setContentView(root)
+
+        // Verifica disponibilità
+        val sdkStatus = HealthConnectClient.getSdkStatus(this)
+        if (sdkStatus != HealthConnectClient.SDK_AVAILABLE) {
+            txtStatus.text = "Health Connect non disponibile (status=$sdkStatus)."
+            return
+        }
 
         hc = HealthConnectClient.getOrCreate(this)
 
-        btn.setOnClickListener {
+        btnPerms.setOnClickListener {
+            requestPermissionsLauncher.launch(permissions)
+        }
+
+        btnInsert.setOnClickListener {
             lifecycleScope.launch {
                 try {
                     val granted = hc.permissionController.getGrantedPermissions()
                     if (!granted.containsAll(permissions)) {
-                        txtStatus.text =
-                            "Permessi mancanti: Impostazioni → Health Connect → App con accesso → Glucose Bridge → abilita Scrittura Glicemia."
+                        txtStatus.text = "Permessi mancanti: premi prima 'Richiedi permessi'."
                         return@launch
                     }
 
@@ -59,18 +82,12 @@ class MainActivity : ComponentActivity() {
                         return@launch
                     }
 
-                    val now = Instant.now()
-
-                    // Costruttore coerente con i tuoi errori (time e level obbligatori)
                     val record = BloodGlucoseRecord(
-    time = now,
-    zoneOffset = ZoneOffset.UTC,
-    level = BloodGlucose.millimolesPerLiter(mmol),
-    specimenSource = 0,   // UNKNOWN
-    mealType = 0,         // UNKNOWN
-    relationToMeal = 0,   // UNKNOWN
-    metadata = Metadata()
-)
+                        time = Instant.now(),
+                        zoneOffset = ZoneOffset.UTC,
+                        level = BloodGlucose.millimolesPerLiter(mmol),
+                        metadata = Metadata()
+                    )
 
                     hc.insertRecords(listOf(record))
                     txtStatus.text = "Inserito: $mmol mmol/L"
