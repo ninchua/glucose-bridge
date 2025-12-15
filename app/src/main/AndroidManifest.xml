@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Permesso Health Connect per scrivere la glicemia -->
     <uses-permission android:name="android.permission.health.WRITE_BLOOD_GLUCOSE" />
 
     <application
@@ -8,7 +8,6 @@
         android:icon="@mipmap/ic_launcher"
         android:exported="true">
 
-        <!-- Activity visibile (launcher) -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -19,17 +18,24 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
-            <!-- Deep link per import -->
-            <intent-filter>
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <data
-                    android:scheme="glucosebridge"
-                    android:host="import" />
-            </intent-filter>
-
         </activity>
+
+        <!-- Activity “rationale” (richiesta dal flusso permessi Health Connect) -->
+        <activity
+            android:name=".PermissionsRationaleActivity"
+            android:exported="true" />
+
+        <!-- Alias richiesto per mostrare l’uso permessi nella UI di Health Connect -->
+        <activity-alias
+            android:name="ViewPermissionUsageActivity"
+            android:exported="true"
+            android:targetActivity=".PermissionsRationaleActivity"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
 
     </application>
 
