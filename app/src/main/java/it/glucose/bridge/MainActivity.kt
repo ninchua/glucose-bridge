@@ -13,11 +13,11 @@ import android.health.connect.HealthConnectManager
 import android.health.connect.InsertRecordsResponse
 import android.health.connect.datatypes.BloodGlucoseRecord
 import android.health.connect.datatypes.Metadata
-import android.health.connect.datatypes.units.BloodGlucose
 import android.os.OutcomeReceiver
 import java.time.Instant
 import java.time.ZoneOffset
 import java.util.concurrent.Executors
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
 
@@ -50,28 +50,18 @@ class MainActivity : ComponentActivity() {
             text = "1) Richiedi permesso\n2) Inserisci mmol/L\n3) Premi Inserisci"
         }
 
-        val btnPerm = Button(this).apply {
-            text = "Richiedi permesso WRITE_BLOOD_GLUCOSE"
-        }
+        val btnPerm = Button(this).apply { text = "Richiedi permesso WRITE_BLOOD_GLUCOSE" }
+        val btnOpenPerms = Button(this).apply { text = "Apri permessi Health Connect" }
 
-        val btnOpenPerms = Button(this).apply {
-            text = "Apri permessi Health Connect"
-        }
+        edtMmol = EditText(this).apply { hint = "mmol/L (es. 6.1)" }
 
-        edtMmol = EditText(this).apply {
-            hint = "mmol/L (es. 6.1)"
-        }
-
-        val btnInsert = Button(this).apply {
-            text = "Inserisci glicemia"
-        }
+        val btnInsert = Button(this).apply { text = "Inserisci glicemia" }
 
         root.addView(status)
         root.addView(btnPerm)
         root.addView(btnOpenPerms)
         root.addView(edtMmol)
         root.addView(btnInsert)
-
         setContentView(root)
 
         btnPerm.setOnClickListener {
@@ -86,9 +76,7 @@ class MainActivity : ComponentActivity() {
             )
         }
 
-        btnInsert.setOnClickListener {
-            insertGlucose()
-        }
+        btnInsert.setOnClickListener { insertGlucose() }
     }
 
     private fun insertGlucose() {
@@ -102,36 +90,39 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        // Conversione mmol/L -> mg/dL (Int)
+        val mgdl = (mmol * 18.0182).roundToInt()
+
         val now = Instant.now()
         val offset = ZoneOffset.systemDefault().rules.getOffset(now)
 
         val meta = Metadata.Builder().build()
 
-        // Builder framework che nel tuo SDK vuole BloodGlucose come level
+        // Firma che il tuo compilatore sta imponendo:
+        // Builder(metadata, time, level:Int, p3:Int, p4:Int, p5:Int)
         val record = BloodGlucoseRecord.Builder(
             meta,
             now,
-            BloodGlucose.fromMillimolesPerLiter(mmol)
+            mgdl,
+            0, // specimenSource UNKNOWN
+            0, // relationToMeal UNKNOWN
+            0  // mealType UNKNOWN
         )
             .setZoneOffset(offset)
             .build()
 
-        status.text = "Inserimento in corso… ($mmol mmol/L)"
+        status.text = "Inserimento… ($mmol mmol/L = $mgdl mg/dL)"
 
         hcm.insertRecords(
             listOf(record),
             executor,
             object : OutcomeReceiver<InsertRecordsResponse, HealthConnectException> {
                 override fun onResult(result: InsertRecordsResponse) {
-                    runOnUiThread {
-                        status.text = "Inserito: $mmol mmol/L"
-                    }
+                    runOnUiThread { status.text = "Inserito: $mmol mmol/L ($mgdl mg/dL)" }
                 }
 
                 override fun onError(error: HealthConnectException) {
-                    runOnUiThread {
-                        status.text = "Errore: ${error.message}"
-                    }
+                    runOnUiThread { status.text = "Errore: ${error.message}" }
                 }
             }
         )
