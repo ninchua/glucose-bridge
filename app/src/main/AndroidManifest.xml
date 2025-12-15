@@ -4,12 +4,21 @@
 
     <application
         android:label="Glucose Bridge"
+        android:icon="@mipmap/ic_launcher"
         android:exported="true">
 
+        <!-- Activity visibile (launcher) -->
         <activity
             android:name=".MainActivity"
             android:exported="true">
 
+            <!-- Launcher -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- Deep link per import -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
